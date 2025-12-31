@@ -1,0 +1,9 @@
+aiohttp
+argon2_cffi
+croniter
+websockets
+paho-mqtt
+pycryptodome
+pytibber
+pyyaml
+nicegui

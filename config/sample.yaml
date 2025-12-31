@@ -1,0 +1,36 @@
+data_dir: "/home/foo"
+name: "my_homebattery_remote"
+secret: "a_long_random_string"
+log:
+  level: "INFO" # log level, possible values are DEBUG, INFO, WARNING, ERROR, CRITICAL
+  path: "~/foo.log" # optional, path to the log file
+  count: 0 # optional, number of saved old log files. Zero does not delete any old log file.
+mqtt:
+  host: ""
+  ca: ""
+  tls_insecure: false
+  user: ""
+  password: ""
+homebattery: # list of all homebattery controllers of the whole system
+  my_foo_controller: 
+    root: "homebattery/foo" # key: shown controller name; value: MQTT root
+  my_bar_controller: 
+    root: "homebattery/bar" # key: shown controller name; value: MQTT root
+    is_mode_settable: false
+    is_resettable: false
+web:
+  listen: ""
+  port: 0
+  admin_user: "admin"
+  admin_password: "a_password_hash"
+  user_user: "user"
+  user_password: "a_password_hash"
+  keyfile: ""
+  certfile: ""
+energy:
+  charger_efficiency_factor: 0.9
+  inverter_efficiency_factor: 0.9
+  minimum_margin: 0.05
+  csv_file: "/path/to/file.csv"
+tibber:
+  token: "my_encrypted_tibber_token"
