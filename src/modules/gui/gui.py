@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from nicegui import app, ui, Client
 
 from ..core import get_config_key, WEB_CONFIG_KEY, app_state
-from .login import AuthMiddleware, create_login_page, logout
+from .login import AuthMiddleware, create_login_page, logout, MAIN_PATH, LOGIN_PATH
 from .models.homemodel import HomeModel
 from .models.schedulemodel import ScheduleModel
 from .models.settingsmodel import SettingsModel
@@ -50,12 +50,12 @@ class Gui:
         self.__host = get_config_key(config, str, _LISTEN_ENV_NAME, WEB_CONFIG_KEY, _LISTEN_CONFIG_KEY)
         self.__port = get_config_key(config, int, _PORT_ENV_NAME, WEB_CONFIG_KEY, _PORT_CONFIG_KEY)
 
-        @ui.page('/')
+        @ui.page(MAIN_PATH)
         def main_page():
             create_main_page()
 
-        @ui.page('/login')
-        def login(redirect_to: str = '/'):
+        @ui.page(LOGIN_PATH)
+        def login():
             client_id = ui.context.client.id
             logging.debug(f'Client {client_id} created as login page.')
             instances[client_id] = FakeInstanceData()

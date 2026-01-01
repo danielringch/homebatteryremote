@@ -8,7 +8,10 @@ from nicegui import app, ui
 
 from ..core import app_state, password_hasher
 
-UNRESTRICTED_PAGE_ROUTES = {'/login'}
+MAIN_PATH = '/'
+LOGIN_PATH = '/login'
+
+UNRESTRICTED_PAGE_ROUTES = {LOGIN_PATH}
 
 
 @app.add_middleware
@@ -16,10 +19,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if not app.storage.user.get('authenticated', False):
             if not request.url.path.startswith('/_nicegui') and request.url.path not in UNRESTRICTED_PAGE_ROUTES:
-                return RedirectResponse(f'/login?redirect_to={request.url.path}')
+                return RedirectResponse(LOGIN_PATH)
         return await call_next(request)
 
-def create_login_page(redirect_to: str = '/'):
+def create_login_page():
     def try_login() -> None:  # local function to avoid passing username and password as arguments
         try:
             if username.value == app_state.data.admin_user.value:
@@ -41,10 +44,10 @@ def create_login_page(redirect_to: str = '/'):
             return
 
         app.storage.user.update({'username': username.value, 'authenticated': True})
-        ui.navigate.to(redirect_to)
+        ui.navigate.to(MAIN_PATH)
 
     if app.storage.user.get('authenticated', False):
-        return RedirectResponse('/')
+        return RedirectResponse(MAIN_PATH)
     with ui.card().classes('absolute-center'):
         ui.label(app_state.data.instance_name.value)
         username = ui.input('Username').on('keydown.enter', try_login)
@@ -54,8 +57,8 @@ def create_login_page(redirect_to: str = '/'):
 
 def logout():
     app.storage.user.clear()
-    ui.navigate.to('/login')
+    ui.navigate.to(LOGIN_PATH)
 
 def logout_all():
     app.storage.clear()
-    ui.navigate.to('/login')
+    ui.navigate.to(LOGIN_PATH)
