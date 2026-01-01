@@ -262,7 +262,7 @@ class AppState:
 
     @staticmethod
     def __import_schedule(data: dict):
-        return {datetime.fromisoformat(x): OperationMode.get(y) for x, y in (data.get(_SCHEDULE_DATA_KEY) or {}).items()}
+        return {datetime.fromisoformat(x): OperationMode.get(y) for x, y in data.items()}
 
     @staticmethod
     def __import_template(data: list):
