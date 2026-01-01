@@ -17,6 +17,7 @@ class Scheduler:
         app_state.data.requested_mode.on_change.subscribe(self.__requested_mode_change_handler)
 
     def start(self):
+        self.__get_requested_mode()
         self.__requested_mode_change_handler(EventPayload(None, app_state.data.requested_mode.value))
 
     def __locks_handler(self, args: EventPayload[dict[str, tuple[str, ...]]]):
