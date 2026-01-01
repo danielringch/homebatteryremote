@@ -1,6 +1,5 @@
 import logging
 from collections import namedtuple
-from collections.abc import Collection
 from ..core import Triggers, OperationMode, app_state, EventPayload
 from ..uplink.virtualcontroller import VirtualController
 
@@ -20,7 +19,7 @@ class Scheduler:
     def start(self):
         self.__requested_mode_change_handler(EventPayload(None, app_state.data.requested_mode.value))
 
-    def __locks_handler(self, args: EventPayload[dict[str, Collection[str]]]):
+    def __locks_handler(self, args: EventPayload[dict[str, tuple[str, ...]]]):
         for name, locks in args.data.items():
             if name not in self.__uplink.mode_settable_controllers:
                 continue

@@ -25,7 +25,7 @@ class VirtualController:
 
         self.__modes_actual: dict[str, OperationMode | None] = {x.name: None for x in self.__controllers}
         app_state.data.actual_mode.set(copy(self.__modes_actual))
-        self.__locks: dict[str, None | list[str]] = {x.name: None for x in self.__controllers}
+        self.__locks: dict[str, tuple[str, ...]] = {x.name: tuple() for x in self.__controllers}
 
         self.__capacities = AggregatedMessage(x.name for x in self.__controllers)
         self.__charger_energies = AggregatedMessage(x.name for x in self.__controllers)
@@ -94,7 +94,7 @@ class VirtualController:
         last_locks = self.__locks.get(sender.name)
         if last_locks == locks:
             return
-        self.__locks[sender.name] = locks
+        self.__locks[sender.name] = tuple(locks)
         app_state.data.locks.set(copy(self.__locks))
     
     def __battery_data_handler(self, sender: SingleController, capacity: Decimal):
