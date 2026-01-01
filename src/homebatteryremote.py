@@ -42,7 +42,7 @@ def main():
 
     # nicegui reads some environment variables on import, so we need to delay related imports until all data is available
     os.environ['MATPLOTLIB'] = 'false'
-    os.environ['NICEGUI_STORAGE_PATH'] = data_path
+    os.environ['NICEGUI_STORAGE_PATH'] = os.path.join(data_path, 'sessions')
     from modules.gui import singletons, Gui
 
     singletons.set(virtual_controller, prices)
