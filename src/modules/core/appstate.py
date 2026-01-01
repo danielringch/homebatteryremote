@@ -15,7 +15,7 @@ from typing import Generic, TypeVar, Callable, Any
 from .eventbox import EventBox
 from .types import OperationMode
 from .config import get_optional_config_key, get_config_key
-from .triggers import Triggers, triggers
+from .triggers import Triggers
 
 _INSTANCE_NAME_CONFIG_KEY = 'name'
 
@@ -79,7 +79,7 @@ class AppStateValue(Generic[T]):
         value = get_optional_config_key(self.__file_data, self.__importer, None, None, *self.__keys)
         if value is None:
             return
-        self.value = value
+        self.__set(value)
 
     def set(self, value: T):
         if self.is_readonly:
@@ -98,8 +98,10 @@ class AppStateValue(Generic[T]):
     def __set(self, value: T):
         if self.is_readonly:
             return
+        has_value_changed = self.value != value
         self.value = value
-        self.on_change.fire(self, value)
+        if has_value_changed:
+            self.on_change.fire(self, value)
 
     def __get_leaf_dict(self):
         dict = self.__file_data
@@ -185,8 +187,7 @@ class AppState:
             getattr(self.__data, field.name).add_from_file()
 
         self.__expand_template()
-        self.__expand_schedule()
-        triggers.add('update_schedule', '0/15 * * * *', self.__expand_schedule)
+        # the scheduler is responsible of expanding the schedule, so do nothing here
 
     def save(self):
         assert self.__file is not None
@@ -203,7 +204,7 @@ class AppState:
             except Exception as e:
                 logging.error(f'Can not write app state to file: {e}')
 
-    def __expand_schedule(self):
+    def expand_schedule(self):
         cutoff = Triggers.get_current_quarter_hour()
         schedule: dict[datetime, OperationMode] = {x: y for x, y in self.__data.schedule.value.items() if x >= cutoff}
         template: list[OperationMode] = self.__data.template.value
