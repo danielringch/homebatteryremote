@@ -70,7 +70,7 @@ class Gui:
             port=self.__port,
             reload=False,
             title='Homebattery Remote',
-            favicon=None,
+            favicon=chr(0x1F50B),
             binding_refresh_interval=None,
             show=False)
         
