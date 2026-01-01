@@ -27,9 +27,7 @@ def main():
 
     data_path = get_config_key(config, str, _DATA_DIR_ENV_NAME, _DATA_DIR_CONFIG_KEY)
     data_file = os.path.join(data_path, 'homebattery_remote_instance_data.json')
-    app_state.load_config(secret, config)
-    app_state.load_file(data_file)
-    app_state.start()
+    app_state.load(secret, config, data_file)
 
     logging.debug(f'homebattery remote {__version__}; instance: {app_state.data.instance_name.value}')
 

@@ -161,9 +161,16 @@ class AppState:
     @property
     def data(self):
         return self.__data
-
-    def load_config(self, secret: str, config: dict):
+    
+    def load(self, secret: str, config: dict, file: str):
         self.__secret = secret
+        self.__file = file
+        self.__file_data.clear()
+        if os.path.exists(self.__file):
+            with open(self.__file, 'r') as stream:
+                self.__file_data.update(json.load(stream))
+
+        # data in config makes stuff readonly, so read config first
         self.__data.admin_pass.add_from_config(get_optional_config_key(config, str, None, _ADMIN_PASS_ENV_NAME, WEB_CONFIG_KEY, _ADMIN_PASS_CONFIG_KEY))
         self.__data.admin_user.add_from_config(get_optional_config_key(config, str, None, _ADMIN_USER_ENV_NAME, WEB_CONFIG_KEY, _ADMIN_USER_CONFIG_KEY))
         self.__data.charger_efficiency.add_from_config(get_optional_config_key(config, lambda x: round(Decimal(x), 3), None, None, ENERGY_CONFIG_KEY, _CHARGER_EFFICIENCY_CONFIG_KEY))
@@ -174,17 +181,9 @@ class AppState:
         self.__data.user_pass.add_from_config(get_optional_config_key(config, str, None, _USER_PASS_ENV_NAME, WEB_CONFIG_KEY, _USER_PASS_CONFIG_KEY))
         self.__data.user_user.add_from_config(get_optional_config_key(config, str, None, _USER_USER_ENV_NAME, WEB_CONFIG_KEY, _USER_USER_CONFIG_KEY))
 
-    def load_file(self, file: str):
-        self.__file = file
-        self.__file_data.clear()
-        if os.path.exists(self.__file):
-            with open(self.__file, 'r') as stream:
-                self.__file_data.update(json.load(stream))
-
         for field in fields(AppStateMembers):
             getattr(self.__data, field.name).add_from_file()
 
-    def start(self):
         self.__expand_template()
         self.__expand_schedule()
         triggers.add('update_schedule', '0/15 * * * *', self.__expand_schedule)
