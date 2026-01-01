@@ -64,6 +64,7 @@ class Gui:
     def run(self, storage_secret: str, startup_callback):
         app.on_startup(startup_callback)
         app.on_delete(destroy_cliend)
+        app.on_exception(on_exception)
         ui.run(
             storage_secret=storage_secret,
             host=self.__host,
@@ -81,6 +82,9 @@ def destroy_cliend(client: Client):
         return
     old_instance.destroy()
     logging.debug(f'Client {client.id} deleted.')
+
+def on_exception(e: Exception):
+    logging.error(f'Exception from gui: {e}')
     
 def create_main_page():
     client_id = ui.context.client.id
