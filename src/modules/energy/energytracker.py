@@ -47,7 +47,8 @@ class EnergyTracker:
         logging.debug(f'Energy from inverter: {self.__inverter_energy} Wh, revenue={abs(revenue):.8f} €.')
         logging.debug(f'Energy from solar: {self.__solar_energy} Wh')
 
-        self.__write_to_csv(now, self.__charger_energy, self.__inverter_energy, self.__solar_energy, cost, revenue)
+        if self.__charger_energy or self.__inverter_energy or self.__solar_energy:
+            self.__write_to_csv(now, self.__charger_energy, self.__inverter_energy, self.__solar_energy, cost, revenue)
         self.__charger_energy = 0
         self.__inverter_energy = 0
         self.__solar_energy = 0
