@@ -5,7 +5,7 @@ from modules.price import PriceSource
 from modules.schedule import Scheduler
 from modules.uplink import Mqtt, VirtualController
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 _DATA_DIR_CONFIG_KEY = 'data_dir'
 _SECRET_CONFIG_KEY = 'secret'
