@@ -14,6 +14,10 @@ _AVAILABLE_MODES = {
     OperationMode.DISCHARGE.value: 'discharge'}
 
 def create_template_tab(data: TemplateModel):
+    with ui.row():
+        ui.button('Save', on_click=partial(save_click_handler, data)).bind_enabled_from(data.is_dirty, 'value')
+        ui.button('Cancel', on_click=partial(cancel_click_handler, data)).bind_enabled_from(data.is_dirty, 'value').classes('ml-10')
+
     with ui.grid(columns='auto auto').classes('gap-0'):
 
         ui.label('Hour').classes(_TABLE_HEADER_CELL_CLASS)
@@ -39,6 +43,7 @@ def mode_changed_handler(data: TemplateModel, row: TemplateRow, args: events.Val
 
 def save_click_handler(data: TemplateModel):
     data.write_template()
+    ui.notify('Template saved.', position='top')
 
 def cancel_click_handler(data: TemplateModel):
     # reset dirty flag first; otherwise, refresh would not run

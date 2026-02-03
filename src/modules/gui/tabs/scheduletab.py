@@ -24,6 +24,10 @@ def create_schedule_tab(data: ScheduleModel):
             ui.label('Average charged price')
             ui.label().bind_text_from(data.avg_price, 'value')
 
+    with ui.row():
+        ui.button('Save', on_click=partial(save_click_handler, data)).bind_enabled_from(data.is_dirty, 'value')
+        ui.button('Cancel', on_click=partial(cancel_click_handler, data)).bind_enabled_from(data.is_dirty, 'value').classes('ml-10')
+
     with ui.grid(columns='auto auto auto auto auto auto').classes('gap-0'):
 
         ui.label('Timestamp').classes(_TABLE_HEADER_CELL_CLASS)
@@ -62,6 +66,7 @@ def color_changed_handler(toggle: ui.toggle, value: str):
 
 def save_click_handler(data: ScheduleModel):
     data.write_schedule()
+    ui.notify('Schedule saved.', position='top')
 
 def cancel_click_handler(data: ScheduleModel):
     # reset dirty flag first; otherwise, refresh would not run
