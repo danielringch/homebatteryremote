@@ -14,24 +14,25 @@ _AVAILABLE_MODES = {
     OperationMode.DISCHARGE.value: 'discharge'}
 
 def create_template_tab(data: TemplateModel):
-    with ui.row():
-        ui.button('Save', on_click=partial(save_click_handler, data)).bind_enabled_from(data.is_dirty, 'value')
-        ui.button('Cancel', on_click=partial(cancel_click_handler, data)).bind_enabled_from(data.is_dirty, 'value').classes('ml-10')
+    with ui.column().classes('items-center w-full gap-4'):
+        with ui.row():
+            ui.button('Save', on_click=partial(save_click_handler, data)).bind_enabled_from(data.is_dirty, 'value')
+            ui.button('Cancel', on_click=partial(cancel_click_handler, data)).bind_enabled_from(data.is_dirty, 'value').classes('ml-10')
 
-    with ui.grid(columns='auto auto').classes('gap-0'):
+        with ui.grid(columns='auto auto').classes('gap-0'):
 
-        ui.label('Hour').classes(_TABLE_HEADER_CELL_CLASS)
-        ui.label('Mode').classes(_TABLE_HEADER_CELL_CLASS)
+            ui.label('Hour').classes(_TABLE_HEADER_CELL_CLASS)
+            ui.label('Mode').classes(_TABLE_HEADER_CELL_CLASS)
 
-        for row in data.template:
-            ui.label().bind_text_from(row.hour, 'value').classes(_TABLE_CELL_CLASS)
+            for row in data.template:
+                ui.label().bind_text_from(row.hour, 'value').classes(_TABLE_CELL_CLASS)
 
-            ui.toggle(_AVAILABLE_MODES, on_change=partial(mode_changed_handler, data, row)) \
-                .bind_value_from(row.mode, 'value')
+                ui.toggle(_AVAILABLE_MODES, on_change=partial(mode_changed_handler, data, row)) \
+                    .bind_value_from(row.mode, 'value')
 
-    with ui.row():
-        ui.button('Save', on_click=partial(save_click_handler, data)).bind_enabled_from(data.is_dirty, 'value')
-        ui.button('Cancel', on_click=partial(cancel_click_handler, data)).bind_enabled_from(data.is_dirty, 'value').classes('ml-10')
+        with ui.row():
+            ui.button('Save', on_click=partial(save_click_handler, data)).bind_enabled_from(data.is_dirty, 'value')
+            ui.button('Cancel', on_click=partial(cancel_click_handler, data)).bind_enabled_from(data.is_dirty, 'value').classes('ml-10')
 
 def mode_changed_handler(data: TemplateModel, row: TemplateRow, args: events.ValueChangeEventArguments):
     value = args.value

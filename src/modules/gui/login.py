@@ -8,7 +8,7 @@ from nicegui import app, ui
 
 from ..core import app_state, password_hasher
 
-MAIN_PATH = '/'
+HOME_PATH = '/'
 LOGIN_PATH = '/login'
 
 UNRESTRICTED_PAGE_ROUTES = {LOGIN_PATH}
@@ -44,10 +44,10 @@ def create_login_page():
             return
 
         app.storage.user.update({'username': username.value, 'authenticated': True})
-        ui.navigate.to(MAIN_PATH)
+        ui.navigate.to(HOME_PATH)
 
     if app.storage.user.get('authenticated', False):
-        return RedirectResponse(MAIN_PATH)
+        return RedirectResponse(HOME_PATH)
     with ui.card().classes('absolute-center'):
         ui.label(app_state.data.instance_name.value)
         username = ui.input('Username').on('keydown.enter', try_login)
