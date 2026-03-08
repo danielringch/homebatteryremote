@@ -1,9 +1,9 @@
 import logging
-from dataclasses import dataclass
 from nicegui import app, ui, Client
+from typing import Any
 
 from ..core import get_config_key, WEB_CONFIG_KEY, app_state
-from .login import create_login_page, logout, HOME_PATH, LOGIN_PATH
+from .login import auth_required, create_login_page, logout, HOME_PATH, LOGIN_PATH
 from .models.homemodel import HomeModel
 from .models.schedulemodel import ScheduleModel
 from .models.settingsmodel import SettingsModel
@@ -29,25 +29,12 @@ _SCHEDULE_PATH = '/schedule'
 _TEMPLATE_PATH = '/template'
 _SETTINGS_PATH = '/settings'
 
-# used for login pages, since they do not have real instance data
-class FakeInstanceData:
+# used for login pages, since they do not have a real model
+class FakeModel:
     def destroy(self):
         pass
 
-@dataclass
-class InstanceData:
-    home: HomeModel
-    schedule: ScheduleModel
-    settings: SettingsModel
-    template: TemplateModel
-
-    def destroy(self):
-        self.home.destroy()
-        self.schedule.destroy()
-        self.settings.destroy()
-        self.template.destroy()
-
-instances: dict[str, InstanceData] = {}
+models_by_client_id: dict[str, Any] = {}
 
 class Gui:
     def __init__(self, config: dict):
@@ -58,22 +45,26 @@ class Gui:
         def login_page():
             client_id = ui.context.client.id
             logging.debug(f'Client {client_id} created as login page.')
-            instances[client_id] = FakeInstanceData()
+            models_by_client_id[client_id] = FakeModel()
             create_login_page()
         
         @ui.page(HOME_PATH)
+        @auth_required
         def home_page():
             create_page(_HOME_NAME)
 
         @ui.page(_SCHEDULE_PATH)
+        @auth_required
         def schedule_page():
             create_page(_SCHEDULE_NAME)
 
         @ui.page(_TEMPLATE_PATH)
+        @auth_required
         def template_page():
             create_page(_TEMPLATE_NAME)
 
         @ui.page(_SETTINGS_PATH)
+        @auth_required
         def settings_page():
             create_page(_SETTINGS_NAME)
 
@@ -93,18 +84,11 @@ class Gui:
         
 def create_page(tab_name: str):
     client_id = ui.context.client.id
-
-    data = InstanceData(
-        home=HomeModel(client_id),
-        schedule=ScheduleModel(client_id),
-        settings=SettingsModel(client_id),
-        template=TemplateModel(client_id))
     
-    if (old_instance := instances.get(client_id)):
-        logging.error(f'Double creation of client {client_id}')
-        old_instance.destroy()
-    instances[client_id] = data
-    logging.debug(f'Client {client_id} created.')
+    if (old_model := models_by_client_id.get(client_id)):
+        logging.warning(f'Client {client_id} was reused.')
+        old_model.destroy()
+    logging.debug(f'Create page "{tab_name}" for client {client_id}')
 
     try:
         is_admin = app.storage.user.get('username') == app_state.data.admin_user.value
@@ -122,22 +106,28 @@ def create_page(tab_name: str):
     # Route to the appropriate content based on the tab_name
     with ui.column().classes('w-full p-4'):
         if tab_name == _HOME_NAME:
-            create_home_tab(data.home)
+            model = HomeModel(client_id)
+            create_home_tab(model)
         elif tab_name == _SCHEDULE_NAME:
-            create_schedule_tab(data.schedule)
+            model = ScheduleModel(client_id)
+            create_schedule_tab(model)
         elif tab_name == _TEMPLATE_NAME:
-            create_template_tab(data.template)
+            model = TemplateModel(client_id)
+            create_template_tab(model)
         elif tab_name == _SETTINGS_NAME and is_admin:
-            create_settings_tab(data.settings)
+            model = SettingsModel(client_id)
+            create_settings_tab(model)
         else:
+            model = FakeModel()
             ui.label('Access denied or invalid page.')
+    models_by_client_id[client_id] = model
 
 def destroy_cliend(client: Client):
-    old_instance = instances.pop(client.id, None)
-    if not old_instance:
+    old_model = models_by_client_id.pop(client.id, None)
+    if not old_model:
         logging.warning(f'Client {client.id} was double deleted.')
         return
-    old_instance.destroy()
+    old_model.destroy()
     logging.debug(f'Client {client.id} deleted.')
 
 def on_exception(e: Exception):

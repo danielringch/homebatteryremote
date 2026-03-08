@@ -1,8 +1,7 @@
-import logging
+import inspect, logging
 from argon2.exceptions import VerifyMismatchError
-from fastapi import Request
 from fastapi.responses import RedirectResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from functools import wraps
 
 from nicegui import app, ui
 
@@ -11,16 +10,19 @@ from ..core import app_state, password_hasher
 HOME_PATH = '/'
 LOGIN_PATH = '/login'
 
-UNRESTRICTED_PAGE_ROUTES = {LOGIN_PATH}
-
-
-@app.add_middleware
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+def auth_required(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
         if not app.storage.user.get('authenticated', False):
-            if not request.url.path.startswith('/_nicegui') and request.url.path not in UNRESTRICTED_PAGE_ROUTES:
-                return RedirectResponse(LOGIN_PATH)
-        return await call_next(request)
+            ui.navigate.to(LOGIN_PATH)
+            return
+
+        if inspect.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+
+    return wrapper
 
 def create_login_page():
     def try_login() -> None:  # local function to avoid passing username and password as arguments
