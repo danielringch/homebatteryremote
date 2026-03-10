@@ -5,7 +5,7 @@ from nicegui import app, ui, Client
 from typing import Any
 
 from ..core import get_config_key, WEB_CONFIG_KEY, app_state
-from .login import logins_by_session_id, auth_required, create_login_page, logout, HOME_PATH, LOGIN_PATH, get_session_and_instance_id
+from .login import create_login_page, logout, HOME_PATH, LOGIN_PATH, get_session_id, get_current_user
 from .models.homemodel import HomeModel
 from .models.schedulemodel import ScheduleModel
 from .models.settingsmodel import SettingsModel
@@ -45,28 +45,24 @@ class Gui:
 
         @ui.page(LOGIN_PATH)
         def login_page(request: Request):
-            session_id, instance_id = get_session_and_instance_id(request)
-            logging.debug(f'session_id={session_id} instance_id={instance_id} created as login page.')
+            instance_id = ui.context.client.id
+            logging.debug(f'instance_id={instance_id} created as login page.')
             models_by_instance_id[instance_id] = FakeModel()
-            create_login_page(session_id)
+            create_login_page(request)
         
         @ui.page(HOME_PATH)
-        @auth_required
         def home_page(request: Request):
             create_page(_HOME_NAME, request)
 
         @ui.page(_SCHEDULE_PATH)
-        @auth_required
         def schedule_page(request: Request):
             create_page(_SCHEDULE_NAME, request)
 
         @ui.page(_TEMPLATE_PATH)
-        @auth_required
         def template_page(request: Request):
             create_page(_TEMPLATE_NAME, request)
 
         @ui.page(_SETTINGS_PATH)
-        @auth_required
         def settings_page(request: Request):
             create_page(_SETTINGS_NAME, request)
 
@@ -85,20 +81,20 @@ class Gui:
             show=False)
         
 def create_page(tab_name: str, request: Request):
-    session_id, instance_id = get_session_and_instance_id(request)
-    user_name = logins_by_session_id.get(session_id)
-    if user_name is None:
-        logging.error(f'session_id={session_id} tricked the login check.')
-        ui.label('Access denied or invalid page.')
+    user_name = get_current_user(request)
+    if not user_name:
+        ui.navigate.to(LOGIN_PATH)
+        return
     try:
         is_admin = user_name == app_state.data.admin_user.value
     except:
         is_admin = False
 
+    instance_id = ui.context.client.id
     if (old_model := models_by_instance_id.get(instance_id)):
         logging.warning(f'instance_id={instance_id} was reused.')
         old_model.destroy()
-    logging.debug(f'Create page "{tab_name}" for session_id={session_id} instance_id={instance_id}')
+    logging.debug(f'Create page "{tab_name}" for instance_id={instance_id}')
 
     with ui.header().classes(replace='row items-center justify-center gap-2'):
         create_navigation_button(_HOME_NAME, HOME_PATH, tab_name)
@@ -106,7 +102,7 @@ def create_page(tab_name: str, request: Request):
         create_navigation_button(_TEMPLATE_NAME, _TEMPLATE_PATH, tab_name)
         if is_admin:
             create_navigation_button(_SETTINGS_NAME, _SETTINGS_PATH, tab_name)
-        ui.button(_LOGOUT_NAME, on_click=partial(logout, session_id)).props('flat').classes('text-white')
+        ui.button(_LOGOUT_NAME, on_click=partial(logout, get_session_id(request))).props('flat').classes('text-white')
 
     # Route to the appropriate content based on the tab_name
     with ui.column().classes('w-full p-4'):
@@ -128,12 +124,13 @@ def create_page(tab_name: str, request: Request):
     models_by_instance_id[instance_id] = model
 
 def destroy_cliend(client: Client):
-    old_model = models_by_instance_id.pop(client.id, None)
+    instance_id = client.id
+    old_model = models_by_instance_id.pop(instance_id, None)
     if not old_model:
-        logging.warning(f'client_id={client.id} was double deleted.')
+        logging.warning(f'instance_id={instance_id} was double deleted.')
         return
     old_model.destroy()
-    logging.debug(f'client_id={client.id} deleted.')
+    logging.debug(f'instance_id={instance_id} deleted.')
 
 def on_exception(e: Exception):
     logging.error(f'Exception from gui: {e}')

@@ -1,4 +1,4 @@
-import inspect, logging
+import logging, secrets
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Request
 from fastapi.responses import RedirectResponse
@@ -10,27 +10,38 @@ from ..core import app_state, password_hasher
 HOME_PATH = '/'
 LOGIN_PATH = '/login'
 
+SESSION_ID_KEY = 'hbre_session_id'
+COOKIE_MAX_AGE = 3600 * 24 * 30
+
 logins_by_session_id: dict[str, str] = {}
+pending_logins: dict[str, str] = {} # otp: session_id
 
-def auth_required(func):
-    async def wrapper(request: Request):
-        session_id, _ = get_session_and_instance_id(request)
-        if session_id not in logins_by_session_id:
-            ui.navigate.to(LOGIN_PATH)
-        else:
-            if inspect.iscoroutinefunction(func):
-                return await func(request)
-            else:
-                return func(request)
+def get_current_user(request: Request):
+    session_id = request.cookies.get(SESSION_ID_KEY)
+    return logins_by_session_id.get(session_id)
 
-    return wrapper
+def get_session_id(request: Request):
+    return request.cookies.get(SESSION_ID_KEY)
 
-def create_login_page(session_id: str):
+@app.get('/do-login')
+def do_login(token: str):
+    session_id = pending_logins.pop(token, None)
+    if not session_id:
+        return RedirectResponse(LOGIN_PATH)
+    response = RedirectResponse(HOME_PATH)
+    response.set_cookie(
+        key=SESSION_ID_KEY, 
+        value=session_id,
+        max_age=COOKIE_MAX_AGE,
+        httponly=True,
+        #secure=True,
+        samesite='lax'
+    )
+    return response
+
+def create_login_page(request: Request):
     def try_login() -> None:  # local function to avoid passing username and password as arguments
         try:
-            if not session_id:
-                raise Exception('no session id')
-
             if username.value == app_state.data.admin_user.value:
                 hash = app_state.data.admin_pass.value
             elif username.value == app_state.data.user_user.value:
@@ -49,10 +60,14 @@ def create_login_page(session_id: str):
             ui.notify('Internal error.', color='negative')
             return
 
-        logins_by_session_id[session_id] = username.value
-        ui.navigate.to(HOME_PATH)
+        otp = secrets.token_urlsafe(24)
+        new_session_id = secrets.token_urlsafe(32)
+        logins_by_session_id[new_session_id] = username.value
+        pending_logins[otp] = new_session_id
 
-    if session_id in logins_by_session_id:
+        ui.navigate.to(f'/do-login?token={otp}')
+
+    if get_current_user(request):
         return RedirectResponse(HOME_PATH)
 
     with ui.card().classes('absolute-center'):
@@ -60,14 +75,6 @@ def create_login_page(session_id: str):
         username = ui.input('Username').on('keydown.enter', try_login)
         password = ui.input('Password', password=True, password_toggle_button=True).on('keydown.enter', try_login)
         ui.button('Log in', on_click=try_login)
-    return None
-
-def get_session_and_instance_id(request: Request):
-    session_id = str(request.session.get('id', ''))
-    if not session_id:
-        logging.error('Request did not contain an id.')
-    instance_id = ui.context.client.id
-    return session_id, instance_id
 
 def logout(session_id: str):
     logging.debug(f'session_id={session_id} logged out')
