@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 import logging, secrets
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Request
@@ -10,33 +12,68 @@ from ..core import app_state, password_hasher
 HOME_PATH = '/'
 LOGIN_PATH = '/login'
 
-SESSION_ID_KEY = 'hbre_session_id'
 COOKIE_MAX_AGE = 3600 * 24 * 30
 
-logins_by_session_id: dict[str, str] = {}
-pending_logins: dict[str, str] = {} # otp: session_id
+@dataclass
+class PendingLogin:
+    one_time_password: str
+    user: str
+    session_id: str
+    valid_until: datetime
 
-def get_current_user(request: Request):
-    session_id = request.cookies.get(SESSION_ID_KEY)
-    return logins_by_session_id.get(session_id)
+@dataclass
+class DoneLogin:
+    user: str
+    session_id: str
+    valid_until: datetime
+
+session_id_key: str = None
+logins_by_session_id: dict[str, DoneLogin] = {}
+pending_logins_by_otp: dict[str, PendingLogin] = {}
+
+def init():
+    global session_id_key
+    session_id_key = 'hbre_session_id_' + app_state.data.instance_name.value
 
 def get_session_id(request: Request):
-    return request.cookies.get(SESSION_ID_KEY)
+    return request.cookies.get(session_id_key)
+
+def check_login(request: Request, redirect_on_fail = True):
+    session_id = request.cookies.get(session_id_key)
+    done_login = logins_by_session_id.get(session_id)
+
+    user_name = None
+    if not done_login:
+        pass
+    elif done_login.valid_until < datetime.now():
+        del logins_by_session_id[session_id]
+    else:
+        user_name = done_login.user
+
+    if (not user_name) and redirect_on_fail:
+        ui.navigate.to(LOGIN_PATH)
+    return user_name
 
 @app.get('/do-login')
 def do_login(token: str):
-    session_id = pending_logins.pop(token, None)
-    if not session_id:
+    now = datetime.now()
+    pending_login = pending_logins_by_otp.pop(token, None)
+    if (not pending_login) or (pending_login.valid_until < now):
         return RedirectResponse(LOGIN_PATH)
+
+    logins_by_session_id[pending_login.session_id] = DoneLogin(
+        user=pending_login.user,
+        session_id=pending_login.session_id,
+        valid_until=now + timedelta(seconds=COOKIE_MAX_AGE))
+    
     response = RedirectResponse(HOME_PATH)
     response.set_cookie(
-        key=SESSION_ID_KEY, 
-        value=session_id,
+        key=session_id_key, 
+        value=pending_login.session_id,
         max_age=COOKIE_MAX_AGE,
         httponly=True,
         #secure=True,
-        samesite='lax'
-    )
+        samesite='lax')
     return response
 
 def create_login_page(request: Request):
@@ -60,15 +97,17 @@ def create_login_page(request: Request):
             ui.notify('Internal error.', color='negative')
             return
 
-        otp = secrets.token_urlsafe(24)
-        new_session_id = secrets.token_urlsafe(32)
-        logins_by_session_id[new_session_id] = username.value
-        pending_logins[otp] = new_session_id
+        pending_login = PendingLogin(
+            one_time_password=secrets.token_urlsafe(24),
+            user=username.value,
+            session_id=secrets.token_urlsafe(32),
+            valid_until=(datetime.now() + timedelta(minutes=1)))
+        pending_logins_by_otp[pending_login.one_time_password] = pending_login
 
-        ui.navigate.to(f'/do-login?token={otp}')
+        ui.navigate.to(f'/do-login?token={pending_login.one_time_password}')
 
-    if get_current_user(request):
-        return RedirectResponse(HOME_PATH)
+    if check_login(request, redirect_on_fail=False):
+        ui.navigate.to(HOME_PATH)
 
     with ui.card().classes('absolute-center'):
         ui.label(app_state.data.instance_name.value)

@@ -5,7 +5,8 @@ from nicegui import app, ui, Client
 from typing import Any
 
 from ..core import get_config_key, WEB_CONFIG_KEY, app_state
-from .login import create_login_page, logout, HOME_PATH, LOGIN_PATH, get_session_id, get_current_user
+from .login import init as init_login
+from .login import create_login_page, logout, HOME_PATH, LOGIN_PATH, get_session_id, check_login
 from .models.homemodel import HomeModel
 from .models.schedulemodel import ScheduleModel
 from .models.settingsmodel import SettingsModel
@@ -42,6 +43,8 @@ class Gui:
     def __init__(self, config: dict):
         self.__host = get_config_key(config, str, _LISTEN_ENV_NAME, WEB_CONFIG_KEY, _LISTEN_CONFIG_KEY)
         self.__port = get_config_key(config, int, _PORT_ENV_NAME, WEB_CONFIG_KEY, _PORT_CONFIG_KEY)
+
+        init_login()
 
         @ui.page(LOGIN_PATH)
         def login_page(request: Request):
@@ -81,7 +84,7 @@ class Gui:
             show=False)
         
 def create_page(tab_name: str, request: Request):
-    user_name = get_current_user(request)
+    user_name = check_login(request)
     if not user_name:
         ui.navigate.to(LOGIN_PATH)
         return
