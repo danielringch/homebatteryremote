@@ -122,11 +122,11 @@ class AppStateMembers:
     instance_name: AppStateValue[str]
     inverter_efficiency: AppStateValue[Decimal]
     locks: AppStateValue[dict[str, tuple[str, ...]]]
-    manual_mode: AppStateValue[OperationMode | None]
+    manual_mode: AppStateValue[dict[str, OperationMode]]
     minimum_margin: AppStateValue[Decimal]
     prices_revision: AppStateValue[datetime]
     remaining_capacity: AppStateValue[Decimal | None]
-    requested_mode: AppStateValue[OperationMode]
+    requested_mode: AppStateValue[dict[str, OperationMode]]
     schedule: AppStateValue[dict[datetime, OperationMode]]
     template: AppStateValue[tuple[OperationMode, ...]]
     tibber_token: AppStateValue[str | None]
@@ -148,11 +148,11 @@ class AppState:
             instance_name=AppStateValue(None, {}, tuple(), None, None),
             inverter_efficiency=AppStateValue(self.__file_data, Decimal(1), (_CONFIG_DATA_KEY, ENERGY_CONFIG_KEY, _INVERTER_EFFICIENCY_CONFIG_KEY), lambda x: round(Decimal(x), 3), str),
             locks=AppStateValue(None, {}, tuple(), None, None),
-            manual_mode=AppStateValue(self.__file_data, None, (_MANUAL_MODE_DATA_KEY,), self.__import_manual_mode, self.__export_manual_mode),
+            manual_mode=AppStateValue(self.__file_data, {}, (_MANUAL_MODE_DATA_KEY,), self.__import_manual_mode, self.__export_manual_mode),
             minimum_margin=AppStateValue(self.__file_data, Decimal(0), (_CONFIG_DATA_KEY, ENERGY_CONFIG_KEY, _MINIMUM_MARGIN_CONFIG_KEY), lambda x: round(Decimal(x), 4), str),
             prices_revision=AppStateValue(None, datetime.min, tuple(), None, None),
             remaining_capacity=AppStateValue(None, Decimal(-1), tuple(), None, None),
-            requested_mode=AppStateValue(None, OperationMode.IDLE, tuple(), None, None),
+            requested_mode=AppStateValue(None, {}, tuple(), None, None),
             schedule=AppStateValue(self.__file_data, {}, (_SCHEDULE_DATA_KEY,), self.__import_schedule, self.__export_schedule),
             template=AppStateValue(self.__file_data, [], (_SCHEDULE_TEMPLATE_DATA_KEY,), self.__import_template, self.__export_template),
             tibber_token=AppStateValue(self.__file_data, None, (_CONFIG_DATA_KEY, _TIBBER_CONFIG_KEY, _TIBBER_TOKEN_CONFIG_KEY), self.__decrypt, self.__encrypt),
@@ -245,8 +245,8 @@ class AppState:
         return cipher.decrypt(ciphertext).decode()
 
     @staticmethod
-    def __export_manual_mode(data: OperationMode | None):
-        return None if (data is None) else data.value
+    def __export_manual_mode(data: dict[str, OperationMode]):
+        return {x: y.value for x, y in data.items()}
 
     @staticmethod
     def __export_schedule(data: dict[datetime, OperationMode]):
@@ -257,8 +257,8 @@ class AppState:
         return list(x.value for x in data)
 
     @staticmethod
-    def __import_manual_mode(data: str):
-        return None if (not data) else OperationMode.get(data)
+    def __import_manual_mode(data: dict[str, str]):
+        return {x: OperationMode.get(y) for x, y in data.items()}
 
     @staticmethod
     def __import_schedule(data: dict):

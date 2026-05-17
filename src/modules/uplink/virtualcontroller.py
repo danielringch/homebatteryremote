@@ -12,7 +12,7 @@ class VirtualController:
     def __init__(self, config, mqtt: Mqtt):
         raw_controllers = get_config_key(config, lambda x: (str(y) for y in x.keys()), None, HOMEBATTERY_CONFIG_KEY)
 
-        self.__controllers: list[SingleController] = []
+        self.__controllers: dict[str, SingleController] = {}
         for name in raw_controllers:
             controller = SingleController(config, mqtt, name)
             controller.subscribe_mode(self.__mode_handler)
@@ -21,16 +21,16 @@ class VirtualController:
             controller.subscribe_charger(self.__charger_data_handler)
             controller.subscribe_inverter(self.__inverter_data_handler)
             controller.subscribe_solar(self.__solar_data_handler)
-            self.__controllers.append(controller)
+            self.__controllers[name] = controller
 
-        self.__modes_actual: dict[str, OperationMode | None] = {x.name: None for x in self.__controllers}
+        self.__modes_actual: dict[str, OperationMode | None] = {x: None for x in self.__controllers.keys()}
         app_state.data.actual_mode.set(copy(self.__modes_actual))
-        self.__locks: dict[str, tuple[str, ...]] = {x.name: tuple() for x in self.__controllers}
+        self.__locks: dict[str, tuple[str, ...]] = {x: tuple() for x in self.__controllers.keys()}
 
-        self.__capacities = AggregatedMessage(x.name for x in self.__controllers)
-        self.__charger_energies = AggregatedMessage(x.name for x in self.__controllers)
-        self.__inverter_energies = AggregatedMessage(x.name for x in self.__controllers)
-        self.__solar_energies = AggregatedMessage(x.name for x in self.__controllers)
+        self.__capacities = AggregatedMessage(self.__controllers.keys())
+        self.__charger_energies = AggregatedMessage(self.__controllers.keys())
+        self.__inverter_energies = AggregatedMessage(self.__controllers.keys())
+        self.__solar_energies = AggregatedMessage(self.__controllers.keys())
 
         self.__on_battery_capacity: EventBox[Decimal] = EventBox()
         self.__charger_energy_callback: EventBox[int] = EventBox()
@@ -39,15 +39,15 @@ class VirtualController:
 
     @property
     def controllers(self):
-        return tuple(x.name for x in self.__controllers)
+        return tuple(self.__controllers.keys())
     
     @property
     def mode_settable_controllers(self):
-        return set(x.name for x in self.__controllers if x.is_mode_settable)
+        return set(x.name for x in self.__controllers.values() if x.is_mode_settable)
     
     @property
     def resettable_controllers(self):
-        return set(x.name for x in self.__controllers if x.is_resettable)
+        return set(x.name for x in self.__controllers.values() if x.is_resettable)
 
     @property
     def modes_actual(self):
@@ -73,15 +73,11 @@ class VirtualController:
     def on_solar_energy(self):
         return self.__solar_energy_callback
 
-    def send_mode(self, mode: OperationMode, name: str | None = None):
-        controllers = (x for x in self.__controllers if x.name == name) if name else self.__controllers
-        for controller in controllers:
-            controller.send_mode(mode)
+    def send_mode(self, mode: OperationMode, name: str):
+        self.__controllers[name].send_mode(mode)
 
-    def send_reset(self, name: str | None = None):
-        controllers = (x for x in self.__controllers if x.name == name) if name else self.__controllers
-        for controller in controllers:
-            controller.send_reset()
+    def send_reset(self, name: str):
+        self.__controllers[name].send_reset()
 
     def __mode_handler(self, sender: SingleController, mode: OperationMode):
         last_mode = self.__modes_actual.get(sender.name)
