@@ -2,6 +2,7 @@ import logging
 from fastapi import Request
 from functools import partial
 from nicegui import app, ui, Client
+from traceback import format_exception
 from typing import Any
 
 from ..core import get_config_key, WEB_CONFIG_KEY, app_state
@@ -137,6 +138,7 @@ def destroy_cliend(client: Client):
 
 def on_exception(e: Exception):
     logging.error(f'Exception from gui: {e}')
+    logging.debug(''.join(format_exception(e)))
 
 def create_navigation_button(text: str, path: str, active_tab_text: str):
     color_class = 'text-yellow' if text == active_tab_text else 'text-white'
