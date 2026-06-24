@@ -27,18 +27,17 @@ def create_home_tab(data: HomeModel):
     with ui.column().classes('items-center w-full gap-4'):
         ui.label(app_state.data.instance_name.value).classes('text-h6')
 
-        with ui.card().classes(SYNC_WIDTH_CARD_CLASS):
-            ui.label('Requested mode')
-            ui.label().bind_text_from(data.requested_mode, 'value')
-
-        for name in system.controllers:
-            controller_state = data.controller_states[name]
+        for controller_name in system.controllers:
+            controller_state = data.controller_states[controller_name]
 
             with ui.card().classes(SYNC_WIDTH_CARD_CLASS):
-                ui.label(f'Controller {name}')
+                ui.label(f'Controller {controller_name}').classes('font-bold')
                 with ui.grid(columns=2):
                     ui.label('Mode control type')
                     ui.label().bind_text_from(controller_state.mode_control_type, 'value')
+
+                    ui.label('Requested mode')
+                    ui.label().bind_text_from(controller_state.mode_requested, 'value')
 
                     ui.label('Actual mode')
                     ui.label().bind_text_from(controller_state.mode_actual, 'value')
@@ -49,20 +48,26 @@ def create_home_tab(data: HomeModel):
         if system.mode_settable_controllers:
             with ui.card().classes(SYNC_WIDTH_CARD_CLASS):
                 with ui.expansion('Manual mode control').classes('full-width-expansion'):
-                    ui.toggle(_AVAILABLE_MODES, on_change=manual_mode_changed_handler).bind_value_from(data.manual_mode, 'value')
+                    for controller_name in (x for x in system.controllers if x in system.mode_settable_controllers): # keep order from system.controllers
+                        controller_state = data.controller_states[controller_name]
+
+                        ui.label(f'Controller {controller_name}').classes('font-bold')
+                        ui.toggle(_AVAILABLE_MODES, on_change=partial(manual_mode_changed_handler, controller_name)).bind_value_from(controller_state.mode_manual, 'value')
     
         if system.resettable_controllers:
             with ui.card().classes(SYNC_WIDTH_CARD_CLASS):
                 with ui.expansion('Reset', icon='refresh').classes('full-width-expansion'):
-                    for name in sorted(system.resettable_controllers):
-                        ui.button(f'Reset {name}', on_click=partial(reset_clicked_handler, name))
+                    for controller_name in (x for x in system.controllers if x in system.resettable_controllers): # keep order from system.controllers
+                        ui.button(f'Reset {controller_name}', on_click=partial(reset_clicked_handler, controller_name))
                     if len(system.resettable_controllers) > 1:
                         ui.button('Reset all controllers', on_click=reset_clicked_handler)
 
     sync_card_widths()
 
-def manual_mode_changed_handler(args: events.ValueChangeEventArguments):
-    app_state.data.manual_mode.set(args.value)
+def manual_mode_changed_handler(controller_name: str, args: events.ValueChangeEventArguments):
+    manual_mode_by_controller = {controller_name: args.value} if args.value else {}
+    manual_mode_by_controller.update({x: y for x, y in app_state.data.manual_mode.value.items() if x != controller_name})
+    app_state.data.manual_mode.set(manual_mode_by_controller)
     app_state.save()
 
 def reset_clicked_handler(controller_name: str | None = None):
